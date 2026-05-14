@@ -898,8 +898,8 @@ function renderTDash(){
       <div class="exam-title">${e.title}</div>
       <div class="exam-meta"><span>📝 ${e.tq} câu</span><span>⏱ ${e.dur} phút</span><span>👥 ${sc.length} bài</span></div>
       <div class="exam-actions">
-        <button class="btn-sm btn-start" onclick="viewExamResults(${e.id})">📊 Xem kết quả</button>
-        <button class="btn-sm btn-danger" onclick="delExam(${e.id})">Xóa</button>
+        <button class="btn-sm btn-start" onclick="viewExamResults('${e.id}')">📊 Xem kết quả</button>
+        <button class="btn-sm btn-danger" onclick="delExam('${e.id}')">Xóa</button>
       </div></div>`;}).join('');
 }
 function renderSDash(){
@@ -926,8 +926,8 @@ function renderSGrid(sub){
         <div class="exam-meta"><span>📝 ${e.tq} câu</span><span>⏱ ${e.dur} phút</span><span>👨‍🏫 ${t?.name||'GV'}</span></div>
         ${ms?`<div class="exam-score">🎯 Điểm: ${ms.score}/10</div>`:''}
         <div class="exam-actions">
-          <button class="btn-sm btn-start" onclick="startExam(${e.id})">${ms?'🔄 Làm lại':'▶ Bắt đầu'}</button>
-          ${ms?`<button class="btn-sm btn-outline" onclick="viewResult(${ms.id})">Xem kết quả</button>`:''}
+          <button class="btn-sm btn-start" onclick="startExam('${e.id}')">${ms?'🔄 Làm lại':'▶ Bắt đầu'}</button>
+          ${ms?`<button class="btn-sm btn-outline" onclick="viewResult('${ms.id}')">Xem kết quả</button>`:''}
         </div></div>`;}).join('');
 }
 
@@ -1218,7 +1218,7 @@ function viewResult(sid){
   }
   document.getElementById('r-detail-grid').innerHTML=detailHTML;
   const isT=CU.role==='teacher'&&exam?.tid===CU.id;
-  document.getElementById('ai-btn-area').innerHTML=isT?`<button class="btn-ai" id="btn-ai" onclick="doAnalyze(${sid})">✨ ${sub.ai?'Phân tích lại':'Phân tích bằng AI'}</button>`:'';
+  document.getElementById('ai-btn-area').innerHTML=isT?`<button class="btn-ai" id="btn-ai" onclick="doAnalyze('${sid}')">✨ ${sub.ai?'Phân tích lại':'Phân tích bằng AI'}</button>`:'';
   hide('ai-key-area');
   const aiBody=document.getElementById('ai-body');
   if(sub.ai)aiBody.innerHTML=`<div class="ai-content">${md2html(sub.ai)}</div>`;
@@ -1361,7 +1361,7 @@ function renderERTable(subs){
       <td style="color:var(--muted)">${Math.floor(s.ts/60)}ph${s.ts%60}s</td>
       <td style="color:var(--muted);font-size:.75rem">${dtStr}</td>
       <td>${s.ai?'<span style="color:var(--accent)">&#10024;</span>':'<span style="color:var(--muted)">--</span>'}</td>
-      <td><button class="btn-view" onclick="viewResult(${s.id})">Xem</button></td>
+      <td><button class="btn-view" onclick="viewResult('${s.id}')">Xem</button></td>
     </tr>`;
   }).join('');
 }
@@ -1489,7 +1489,7 @@ function showHistList(subs){
   list.innerHTML=sorted.map(s=>{
     const ex=DB.exams.find(e=>e.id===s.eid);
     const sc=s.score;const cls=sc>=8?'score-green':sc>=5?'score-yellow':'score-red';
-    return`<div class="hist-item" onclick="viewResult(${s.id})">
+    return`<div class="hist-item" onclick="viewResult('${s.id}')">
       <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${s.ai?'var(--accent2)':'transparent'}"></div>
       <div class="ht"><div class="exam-nm">${ex?.title||'Đề thi'}</div><div class="exam-dt">${ex?.sub||''} · ${new Date(s.at).toLocaleDateString('vi-VN')}</div></div>
       <div class="hist-score ${cls}">${sc}</div></div>`;
@@ -1615,7 +1615,7 @@ async function renderAdminDash(){
         <td style="font-family:var(--mono);font-size:.75rem;color:var(--muted)">${u.email||'—'}</td>
         <td>${roleLabel}</td>
         <td style="color:var(--muted)">${u.cls||'—'}</td>
-        <td><button onclick="deleteUser(${u.id})" style="background:transparent;border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.72rem;font-family:var(--font)">Xóa</button></td>
+        <td><button onclick="deleteUser('${u.id}')" style="background:transparent;border:1px solid rgba(248,113,113,.3);color:var(--red);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.72rem;font-family:var(--font)">Xóa</button></td>
       </tr>`;
     }).join('');
 }
