@@ -979,6 +979,7 @@ function handleAnsFile(inp){
 }
 async function doCreateExam(){
   const title=gv('e-title').trim(),sub=document.getElementById('e-subject').value,dur=parseInt(gv('e-duration'))||60;
+  const desc=gv('e-desc').trim();
   if(!title)return showErr('create-error','Vui lòng nhập tên đề thi');
   if(!sub)return showErr('create-error','Vui lòng chọn môn học');
   if(!upExam)return showErr('create-error','Vui lòng chọn file đề thi');
@@ -986,11 +987,13 @@ async function doCreateExam(){
   const id='e_'+Date.now();
   const url=URL.createObjectURL(upExam);
   examFiles[id]={file:upExam,url,type:upExam.name.split('.').pop().toLowerCase()};
-  const examData={id,title,sub,dur,tid:CU.id,answers:JSON.stringify(parsedAns),tq:Object.keys(parsedAns).length,at:new Date().toISOString(),desc};
+  // Lưu vào RAM (giữ answers dạng object để dùng trong app)
+  const examData={id,title,sub,dur,tid:CU.id,answers:parsedAns,tq:Object.keys(parsedAns).length,at:new Date().toISOString(),description:desc};
   if(USE_SUPABASE){
     try{
+      // Supabase cột answers là jsonb → gửi object trực tiếp, không stringify
       await sbUpsert('exams',examData);
-    }catch(e){ toast('Lỗi lưu đề: '+e.message,'error'); return; }
+    }catch(e){ console.error('Lỗi lưu đề:',e); toast('Lỗi lưu đề: '+(e.message||'unknown'),'error'); return; }
   }
   DB.exams.push(examData);
   toast(`Tạo đề thành công! ${Object.keys(parsedAns).length} câu hỏi 🎉`,'success');
@@ -1138,10 +1141,9 @@ async function doSubmitExam(auto=false){
   const xi=DB.submissions.findIndex(s=>s.eid===exam.id&&s.sid===CU.id);
   const subId = xi>=0 ? DB.submissions[xi].id : 's_'+Date.now();
   const sub={id:subId,eid:exam.id,sid:CU.id,answers:{...answers},score,correct,total:exam.tq,ts,ai:null,at:new Date().toISOString()};
-  const subForDB={...sub,answers:JSON.stringify(sub.answers)};
   if(USE_SUPABASE){
-    try{ await sbUpsert('submissions', subForDB); }
-    catch(e){ toast('Lỗi lưu bài: '+e.message,'error'); }
+    try{ await sbUpsert('submissions', sub); }
+    catch(e){ console.error('Lỗi lưu bài:',e); toast('Lỗi lưu bài: '+(e.message||'unknown'),'error'); }
   }
   if(xi>=0)DB.submissions[xi]=sub;else DB.submissions.push(sub);
   toast(`Nộp bài xong! Điểm: ${score}/10 🎯`,'success');
@@ -1621,7 +1623,15 @@ async function renderAdminDash(){
 async function approveTeacher(pid){
   const idx=DB.pendingTeachers.findIndex(p=>p.id===pid);
   if(idx<0)return;
-  const p=DB.pendingTeachers.splice(idx,1)[0];
+  const p=DB.pendingTeachers[idx];
+  // Kiểm tra trùng username/email trước khi insert
+  if(DB.users.find(u=>u.username===p.username)){
+    return toast(`❌ Username "${p.username}" đã tồn tại trong hệ thống`,'error');
+  }
+  if(p.email && DB.users.find(u=>u.email===p.email)){
+    return toast(`❌ Email "${p.email}" đã được sử dụng`,'error');
+  }
+  DB.pendingTeachers.splice(idx,1);
   // id phải là text vì bảng users.id kiểu text
   const newUser={id:'u'+DB.nextUid++,username:p.username,password:p.password,name:p.name,email:p.email,role:'teacher',cls:''};
   DB.users.push(newUser);
@@ -1630,7 +1640,16 @@ async function approveTeacher(pid){
     try{
       await sbInsert('users', newUser);
       await sbDelete('pending_teachers', pid);
-    } catch(e){ console.error('Lỗi duyệt giáo viên:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+    } catch(e){
+      console.error('Lỗi duyệt giáo viên:', e);
+      const msg = e.message && e.message.includes('duplicate') ? 'Username hoặc email đã tồn tại' : 'Lỗi đồng bộ dữ liệu';
+      toast(msg,'error');
+      // Rollback: trả lại pending_teachers nếu insert thất bại
+      DB.users.pop();
+      DB.pendingTeachers.splice(idx,0,p);
+      renderAdminDash();
+      return;
+    }
   }
   toast(`✅ Đã duyệt tài khoản giáo viên: ${p.name}`,'success');
   renderAdminDash();
