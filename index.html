@@ -1256,7 +1256,7 @@ Hãy viết phân tích bằng Markdown tiếng Việt theo cấu trúc:
 ## 4. Kế hoạch ôn tập đề xuất
 ## 5. Lời nhắn gửi học sinh`;
   try{
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
     if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Lỗi '+res.status);}
     const data=await res.json();
     const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
