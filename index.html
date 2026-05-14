@@ -113,8 +113,8 @@ async function loadSupabaseData() {
       sbGetAll('submissions')
     ]);
     if (users) DB.users = users;
-    if (exams) DB.exams = exams.map(e => e.data ? {...e.data, id: e.id, tid: e.tid} : e);
-    if (submissions) DB.submissions = submissions.map(s => s.data ? {...s.data, id: s.id, sid: s.sid} : s);
+    if (exams) DB.exams = exams;
+    if (submissions) DB.submissions = submissions;
     console.log('✅ Loaded data from Supabase');
   } catch (e) {
     console.error('Lỗi load dữ liệu:', e);
@@ -814,10 +814,12 @@ async function doRegister(){
     // Giáo viên → vào hàng chờ duyệt
     const pt={id:'p'+DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'teacher',cls:'',submittedAt:new Date().toISOString()};
     DB.pendingTeachers.push(pt);
-    // Ghi vào Supabase
+    // Ghi vào Supabase (loại bỏ field 'role' và đổi tên 'submittedAt' → 'submitted_at' cho khớp schema)
     if(USE_SUPABASE){
-      try{ await sbInsert('pending_teachers', pt); }
-      catch(e){ console.error('Lỗi ghi pending_teachers:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+      try{
+        const ptForDb = {id:pt.id, username:pt.username, password:pt.password, name:pt.name, email:pt.email, cls:pt.cls, submitted_at:pt.submittedAt};
+        await sbInsert('pending_teachers', ptForDb);
+      } catch(e){ console.error('Lỗi ghi pending_teachers:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
     }
     hide('login-error');
     showErr('login-error','');
@@ -828,8 +830,8 @@ async function doRegister(){
     document.getElementById('login-error').classList.remove('hidden');
     setTimeout(()=>switchTab('login'),3000);
   } else {
-    // Học sinh → tạo ngay
-    const u={id:DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'student',cls:cl};
+    // Học sinh → tạo ngay (id phải là text vì bảng users.id kiểu text)
+    const u={id:'u'+DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'student',cls:cl};
     DB.users.push(u);
     // Ghi vào Supabase
     if(USE_SUPABASE){
@@ -1620,7 +1622,8 @@ async function approveTeacher(pid){
   const idx=DB.pendingTeachers.findIndex(p=>p.id===pid);
   if(idx<0)return;
   const p=DB.pendingTeachers.splice(idx,1)[0];
-  const newUser={id:DB.nextUid++,username:p.username,password:p.password,name:p.name,email:p.email,role:'teacher',cls:''};
+  // id phải là text vì bảng users.id kiểu text
+  const newUser={id:'u'+DB.nextUid++,username:p.username,password:p.password,name:p.name,email:p.email,role:'teacher',cls:''};
   DB.users.push(newUser);
   // Sync với Supabase: thêm vào users, xóa khỏi pending_teachers
   if(USE_SUPABASE){
