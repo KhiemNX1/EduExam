@@ -794,7 +794,13 @@ async function doRegister(){
     return showErr('login-error','Email đã được đăng ký');
   if(regRole==='teacher'){
     // Giáo viên → vào hàng chờ duyệt
-    DB.pendingTeachers.push({id:'p'+DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'teacher',cls:'',submittedAt:new Date().toISOString()});
+    const pt={id:'p'+DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'teacher',cls:'',submittedAt:new Date().toISOString()};
+    DB.pendingTeachers.push(pt);
+    // Ghi vào Supabase
+    if(USE_SUPABASE){
+      try{ await sbInsert('pending_teachers', pt); }
+      catch(e){ console.error('Lỗi ghi pending_teachers:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+    }
     hide('login-error');
     showErr('login-error','');
     document.getElementById('login-error').style.background='rgba(34,197,94,.1)';
@@ -806,7 +812,13 @@ async function doRegister(){
   } else {
     // Học sinh → tạo ngay
     const u={id:DB.nextUid++,username:un,password:pw,name:nm,email:em,role:'student',cls:cl};
-    DB.users.push(u); CU=u; hide('login-error');
+    DB.users.push(u);
+    // Ghi vào Supabase
+    if(USE_SUPABASE){
+      try{ await sbInsert('users', u); }
+      catch(e){ console.error('Lỗi ghi users:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+    }
+    CU=u; hide('login-error');
     toast('Đăng ký thành công! 🎉','success'); enterApp();
   }
 }
@@ -1590,7 +1602,15 @@ async function approveTeacher(pid){
   const idx=DB.pendingTeachers.findIndex(p=>p.id===pid);
   if(idx<0)return;
   const p=DB.pendingTeachers.splice(idx,1)[0];
-  DB.users.push({id:DB.nextUid++,username:p.username,password:p.password,name:p.name,email:p.email,role:'teacher',cls:''});
+  const newUser={id:DB.nextUid++,username:p.username,password:p.password,name:p.name,email:p.email,role:'teacher',cls:''};
+  DB.users.push(newUser);
+  // Sync với Supabase: thêm vào users, xóa khỏi pending_teachers
+  if(USE_SUPABASE){
+    try{
+      await sbInsert('users', newUser);
+      await sbDelete('pending_teachers', pid);
+    } catch(e){ console.error('Lỗi duyệt giáo viên:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+  }
   toast(`✅ Đã duyệt tài khoản giáo viên: ${p.name}`,'success');
   renderAdminDash();
 }
@@ -1599,6 +1619,11 @@ async function rejectTeacher(pid){
   const idx=DB.pendingTeachers.findIndex(p=>p.id===pid);
   if(idx<0)return;
   const p=DB.pendingTeachers.splice(idx,1)[0];
+  // Xóa khỏi Supabase
+  if(USE_SUPABASE){
+    try{ await sbDelete('pending_teachers', pid); }
+    catch(e){ console.error('Lỗi từ chối:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+  }
   toast(`Đã từ chối tài khoản: ${p.name}`,'info');
   renderAdminDash();
 }
@@ -1610,6 +1635,11 @@ async function deleteUser(uid){
   DB.users=DB.users.filter(x=>x.id!==uid);
   DB.submissions=DB.submissions.filter(s=>s.sid!==uid);
   DB.exams=DB.exams.filter(e=>e.tid!==uid);
+  // Xóa khỏi Supabase
+  if(USE_SUPABASE){
+    try{ await sbDelete('users', uid); }
+    catch(e){ console.error('Lỗi xóa user:', e); toast('Lỗi đồng bộ dữ liệu','error'); }
+  }
   toast(`Đã xóa tài khoản ${u.name}`,'info');
   renderAdminDash();
 }
